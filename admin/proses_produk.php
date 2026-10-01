@@ -22,6 +22,41 @@ $aksi = $_POST['aksi'] ?? '';
 */
 
 /**
+ * Ubah teks menjadi nama file yang aman, contoh:
+ * "Buku Tulis Dotted" -> "buku-tulis-dotted"
+ */
+function buatSlug($teks)
+{
+    $teks = strtolower(trim($teks));
+    $teks = preg_replace('/[^a-z0-9]+/', '-', $teks);
+    $teks = trim($teks, '-');
+
+    return $teks !== '' ? $teks : 'produk';
+}
+
+/**
+ * Buat nama file unik tanpa kode acak.
+ * Contoh: buku-tulis-dotted.jpg, jika sudah dipakai produk lain
+ * menjadi buku-tulis-dotted-2.jpg, dst.
+ * $boleh_sama = nama file lama milik produk yang sedang diedit.
+ */
+function namaFileUnik($slug, $ext, $boleh_sama = null)
+{
+    $nama = $slug . "." . $ext;
+    $i = 2;
+
+    while (
+        file_exists("../uploads/produk/" . $nama)
+        && $nama !== $boleh_sama
+    ) {
+        $nama = $slug . "-" . $i . "." . $ext;
+        $i++;
+    }
+
+    return $nama;
+}
+
+/**
  * Validasi input produk.
  * Mengembalikan pesan error, atau null jika semua valid.
  */
@@ -126,7 +161,8 @@ if ($aksi == 'tambah') {
             pathinfo($_FILES['gambar']['name'], PATHINFO_EXTENSION)
         );
 
-        $nama_file = uniqid() . "." . $extension;
+        // nama file mengikuti nama produk, contoh: buku-tulis-dotted.jpeg
+        $nama_file = namaFileUnik(buatSlug($nama), $extension);
 
         move_uploaded_file(
             $_FILES['gambar']['tmp_name'],
@@ -263,15 +299,20 @@ if ($aksi == 'edit') {
             pathinfo($_FILES['gambar']['name'], PATHINFO_EXTENSION)
         );
 
-        $nama_file = uniqid() . "." . $extension;
+        // nama file mengikuti nama produk, contoh: buku-tulis-dotted.jpeg
+        $nama_file = namaFileUnik(
+            buatSlug($nama),
+            $extension,
+            $old_data['gambar']
+        );
 
         move_uploaded_file(
             $_FILES['gambar']['tmp_name'],
             "../uploads/produk/" . $nama_file
         );
 
-        // hapus gambar lama
-        if ($old_data['gambar']) {
+        // hapus gambar lama (kecuali namanya sama dengan yang baru)
+        if ($old_data['gambar'] && $old_data['gambar'] !== $nama_file) {
 
             $path_lama = "../uploads/produk/" . basename($old_data['gambar']);
 
